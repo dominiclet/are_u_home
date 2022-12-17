@@ -25,8 +25,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("{:?}", updates);
 
         for update in updates {
+            let command = match update.get_command() {
+                Some(command) => command,
+                None => continue
+            };
+
+            let text = match command {
+                types::Command::Help => String::from("Show help message"),
+                types::Command::Start => String::from("Show start message")
+            };
             telegram_client.send_message(update.message.chat.id, 
-                                         update.message.text).await?;
+                                         text).await?;
         }
 
         sleep(time::Duration::from_secs(2));
