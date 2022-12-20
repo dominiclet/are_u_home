@@ -5,7 +5,7 @@ use crate::types::{GetUpdatesResp, UpdateList, SendMessageReq};
 const TELEGRAM_DOMAIN: &str = "https://api.telegram.org";
 
 pub struct TelegramClient {
-    http_client: reqwest::Client,
+    http_client: reqwest::blocking::Client,
     token: String,
     update_offset: Option<i32>
 }
@@ -13,7 +13,7 @@ pub struct TelegramClient {
 impl TelegramClient {
     pub fn new(token: String) -> TelegramClient {
         TelegramClient {
-            http_client: reqwest::Client::new(),
+            http_client: reqwest::blocking::Client::new(),
             token,
             update_offset: None
         }
@@ -39,7 +39,7 @@ impl TelegramClient {
         endpoint_string
     }
 
-    pub async fn get_updates(&mut self) -> Result<UpdateList, Box<dyn std::error::Error>> {
+    pub fn get_updates(&mut self) -> Result<UpdateList, Box<dyn std::error::Error>> {
         let endpoint: String;
 
         match self.update_offset {
@@ -56,9 +56,9 @@ impl TelegramClient {
         }
 
         let resp = self.http_client.get(endpoint)
-            .send().await?;
+            .send()?;
 
-        let get_updates_resp = resp.json::<GetUpdatesResp>().await?;
+        let get_updates_resp = resp.json::<GetUpdatesResp>()?;
 
         // Handle not OK response
         if get_updates_resp.ok == false {
@@ -77,14 +77,14 @@ impl TelegramClient {
         Ok(get_updates_resp.result)
     }
 
-    pub async fn send_message(&self, chat_id: i64, text: String) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn send_message(&self, chat_id: i64, text: String) -> Result<(), Box<dyn std::error::Error>> {
         let message_req = SendMessageReq {
             chat_id,
             text
         };
 
         self.http_client.post(self.construct_endpoint("sendMessage", None))
-            .json(&message_req).send().await?;
+            .json(&message_req).send()?;
 
         Ok(())
     }

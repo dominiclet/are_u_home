@@ -39,7 +39,7 @@ pub struct User {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct SendMessageReq{
+pub struct SendMessageReq {
     pub chat_id: i64,
     pub text: String
 }
@@ -73,4 +73,10 @@ impl Update {
 pub enum Command {
     Help,
     Start
+}
+
+pub struct GroupInfo {
+    pub no_ppl: i32,
+    pub unaccounted_ppl: Vec<String>,
+    pub last_bumped: i32,
 }
