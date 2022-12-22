@@ -1,3 +1,5 @@
+use std::time::SystemTime;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -11,7 +13,8 @@ pub type UpdateList = Vec<Update>;
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Update {
    pub update_id: i32,
-   pub message: Message
+   #[serde(default)]
+   pub message: Option<Message>
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -20,13 +23,16 @@ pub struct Message {
     pub from: User,
     pub date: i32,
     pub chat: Chat,
-    pub text: String
+    #[serde(default)]
+    pub text: Option<String>
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Chat {
     pub id: i64,
     pub r#type: String,
+    #[serde(default)]
+    pub active_usernames: Vec<String>
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -44,9 +50,34 @@ pub struct SendMessageReq {
     pub text: String
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct GetChatReq {
+    pub chat_id: i64
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct GetChatResp {
+    pub ok: bool,
+    pub result: Chat
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct GetChatMemberCountResp {
+    pub ok: bool,
+    pub result: i32
+}
+
 impl Update {
     pub fn get_command(&self) -> Option<Command> {
-        let mut split_str = self.message.text.split_whitespace();
+        let message = match &self.message {
+            None => return None,
+            Some(message) => message
+        };
+        let text = match &message.text {
+            None => return None,
+            Some(text) => text
+        };
+        let mut split_str = text.split_whitespace();
         let command = match split_str.next() {
             Some(command) => String::from(command),
             None => return None
@@ -65,6 +96,7 @@ impl Update {
         match &command[1..].to_lowercase()[..] {
             "help" => Some(Command::Help),
             "start" => Some(Command::Start),
+            "homed" => Some(Command::Homed),
             _ => None
         }
     }
@@ -72,11 +104,12 @@ impl Update {
 
 pub enum Command {
     Help,
-    Start
+    Start,
+    Homed
 }
 
 pub struct GroupInfo {
     pub no_ppl: i32,
-    pub unaccounted_ppl: Vec<String>,
-    pub last_bumped: i32,
+    pub accounted: Vec<String>,
+    pub last_bumped: SystemTime,
 }

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::types::{GetUpdatesResp, UpdateList, SendMessageReq};
+use crate::types::{GetUpdatesResp, UpdateList, SendMessageReq, GetChatReq, GetChatResp, Chat, GetChatMemberCountResp};
 
 const TELEGRAM_DOMAIN: &str = "https://api.telegram.org";
 
@@ -87,6 +87,37 @@ impl TelegramClient {
             .json(&message_req).send()?;
 
         Ok(())
+    }
+
+    pub fn get_chat(&self, chat_id: i64) -> Result<Chat, Box<dyn std::error::Error>> {
+        let get_chat_req = GetChatReq {
+            chat_id
+        };
+
+        let resp = self.http_client.post(self.construct_endpoint("getChat", None))
+            .json(&get_chat_req).send()?;
+        let get_chat_resp = resp.json::<GetChatResp>()?;
+        
+        if !get_chat_resp.ok {
+            return Err("getChat did not return a successful response.".into());
+        }
+
+        Ok(get_chat_resp.result)
+    }
+
+    pub fn get_chat_member_count(&self, chat_id: i64) -> Result<i32, Box<dyn std::error::Error>> {
+        let get_chat_req = GetChatReq {
+            chat_id
+        };
+        let resp = self.http_client.post(self.construct_endpoint("getChatMemberCount", None))
+            .json(&get_chat_req).send()?;
+        let chat_member_resp = resp.json::<GetChatMemberCountResp>()?;
+
+        if !chat_member_resp.ok {
+            return Err("getChatMemberCount did not return a successful response.".into());
+        }
+
+        Ok(chat_member_resp.result)
     }
 }
 
