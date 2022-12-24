@@ -1,6 +1,6 @@
-use std::time::SystemTime;
-
 use serde::{Deserialize, Serialize};
+
+use crate::are_u_home_bot::Command;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GetUpdatesResp {
@@ -70,46 +70,41 @@ pub struct GetChatMemberCountResp {
 impl Update {
     pub fn get_command(&self) -> Option<Command> {
         let message = match &self.message {
-            None => return None,
-            Some(message) => message
+            None => {
+                info!("Unable to get command: Update is not a message.");
+                return None
+            },
+            Some(message) => message 
         };
         let text = match &message.text {
-            None => return None,
+            None => {
+                info!("Unable to get command: Message does not have text.");
+                return None
+            },
             Some(text) => text
         };
-        let mut split_str = text.split_whitespace();
-        let command = match split_str.next() {
-            Some(command) => String::from(command),
-            None => return None
-        };
-        // Check if command begins with '/'
-        let first_char = match command.chars().next() {
+
+        // Check if text begins with '/'
+        let first_char = match text.chars().next() {
             Some(first_char) => first_char,
             None => return None
         };
         if first_char != '/' {
             return None;
         }
+        info!("Retrieved command {}", text);
 
-        info!("Retrieved command {}", command);
+        let truncated_command = &text[1..].to_lowercase();
 
-        match &command[1..].to_lowercase()[..] {
-            "help" => Some(Command::Help),
-            "start" => Some(Command::Start),
-            "homed" => Some(Command::Homed),
-            _ => None
+        if truncated_command.starts_with("help") {
+            Some(Command::Help)
+        } else if truncated_command.starts_with("start") {
+            Some(Command::Start)
+        } else if truncated_command.starts_with("homed") {
+            Some(Command::Homed)
+        } else {
+            warn!("Provided command '{}' not recognised.", truncated_command);
+            None
         }
     }
-}
-
-pub enum Command {
-    Help,
-    Start,
-    Homed
-}
-
-pub struct GroupInfo {
-    pub no_ppl: i32,
-    pub accounted: Vec<String>,
-    pub last_bumped: SystemTime,
 }
