@@ -156,11 +156,11 @@ fn homed_handler(update: &Update, going_home_groups: &Arc<Mutex<HashMap<i64, Gro
 
     let user = &message.from;
     let group_info = going_home_hashmap.get_mut(&message.chat.id).unwrap();
-    if !group_info.accounted.contains(&user.username) {
-        group_info.accounted.push(user.username.clone());
+    if !group_info.accounted.contains(&user.first_name) {
+        group_info.accounted.push(user.first_name.clone());
 
         let resp = telegram_client.send_message(message.chat.id,
-                                     format!("{} updated that they are home.", user.username));
+                                     format!("{} updated that they are home.", user.first_name));
         match resp {
             Err(_) => error!("Homed handler: Failed to send message"),
             Ok(_) => ()

@@ -61,20 +61,22 @@ impl TelegramClient {
         let get_updates_resp = resp.json::<GetUpdatesResp>()?;
 
         // Handle not OK response
-        if get_updates_resp.ok == false {
-            return Err("getUpdates did not return a successful response.".into());
-        }
-
+        let result = match get_updates_resp.get_result() {
+            Some(result) => result,
+            None => {
+                return Err("Did not manage to get results of update".into());
+            }
+        };
         // Update offset so that previous updates are no longer returned
         let mut max_update_id: i32 = 0;
-        for update in &get_updates_resp.result {
+        for update in result {
             if update.update_id > max_update_id {
                 max_update_id = update.update_id;
             }
         }
         self.update_offset = Some(max_update_id + 1);
 
-        Ok(get_updates_resp.result)
+        Ok(result.to_vec())
     }
 
     pub fn send_message(&self, chat_id: i64, text: String) -> Result<(), Box<dyn std::error::Error>> {
@@ -97,12 +99,12 @@ impl TelegramClient {
         let resp = self.http_client.post(self.construct_endpoint("getChat", None))
             .json(&get_chat_req).send()?;
         let get_chat_resp = resp.json::<GetChatResp>()?;
+        let result = match get_chat_resp.get_result() {
+            Some(result) => result,
+            None => return Err("getChat did not return a successful response.".into())
+        };
         
-        if !get_chat_resp.ok {
-            return Err("getChat did not return a successful response.".into());
-        }
-
-        Ok(get_chat_resp.result)
+        Ok(result.to_owned())
     }
 
     pub fn get_chat_member_count(&self, chat_id: i64) -> Result<i32, Box<dyn std::error::Error>> {
@@ -112,12 +114,12 @@ impl TelegramClient {
         let resp = self.http_client.post(self.construct_endpoint("getChatMemberCount", None))
             .json(&get_chat_req).send()?;
         let chat_member_resp = resp.json::<GetChatMemberCountResp>()?;
+        let result = match chat_member_resp.get_result() {
+            Some(result) => result,
+            None => return Err("getChatMemberCount did not return a successful response.".into())
+        };
 
-        if !chat_member_resp.ok {
-            return Err("getChatMemberCount did not return a successful response.".into());
-        }
-
-        Ok(chat_member_resp.result)
+        Ok(*result)
     }
 }
 

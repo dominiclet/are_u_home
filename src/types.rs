@@ -2,22 +2,23 @@ use serde::{Deserialize, Serialize};
 
 use crate::are_u_home_bot::Command;
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct GetUpdatesResp {
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct MethodResp<T> {
     pub ok: bool,
-    pub result: UpdateList
+    pub result: Option<T>,
+    pub description: Option<String>
 }
 
 pub type UpdateList = Vec<Update>;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Update {
    pub update_id: i32,
    #[serde(default)]
    pub message: Option<Message>
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Message {
     pub message_id: i64,
     pub from: User,
@@ -27,7 +28,7 @@ pub struct Message {
     pub text: Option<String>
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Chat {
     pub id: i64,
     pub r#type: String,
@@ -35,13 +36,13 @@ pub struct Chat {
     pub active_usernames: Vec<String>
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct User {
     pub id: i64,
     pub is_bot: bool,
     pub first_name: String,
-    pub last_name: String,
-    pub username: String
+    pub last_name: Option<String>,
+    pub username: Option<String>
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -55,16 +56,23 @@ pub struct GetChatReq {
     pub chat_id: i64
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct GetChatResp {
-    pub ok: bool,
-    pub result: Chat
-}
+pub type GetUpdatesResp = MethodResp<UpdateList>;
+pub type GetChatResp = MethodResp<Chat>;
+pub type GetChatMemberCountResp = MethodResp<i32>;
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct GetChatMemberCountResp {
-    pub ok: bool,
-    pub result: i32
+impl<T> MethodResp<T> {
+    pub fn get_result(&self) -> Option<&T> {
+        if !self.ok {
+            error!("Unable to get response result - {}", self.description.as_ref().unwrap());
+            return None;
+        }
+        let result = match &self.result {
+            Some(result) => result,
+            None => return None
+        };
+
+        Some(result)
+    }
 }
 
 impl Update {
