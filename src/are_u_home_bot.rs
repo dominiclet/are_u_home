@@ -102,7 +102,7 @@ pub fn start_bot(token: String) {
             };
 
             match command {
-                Command::Help => help_handler(&update,&telegram_client),
+                Command::Help => help_handler(&update, &telegram_client),
                 Command::Start => start_handler(&update, &going_home_groups, &telegram_client),
                 Command::Homed => homed_handler(&update, &going_home_groups, &telegram_client)
             };
@@ -114,15 +114,12 @@ pub fn start_bot(token: String) {
 
 // Handlers
 
+/// Handler for /help
+///
+/// Sends a message displaying the available commands
 fn help_handler(update: &Update, telegram_client: &TelegramClient) {
-    let message = match &update.message {
-        Some(message) => message,
-        None => {
-            info!("Incoming update is not a message, ignoring update.");
-            return
-        }
-    };
-
+    // Assume that the update is a message in the handler
+    let message = update.message.as_ref().unwrap();
     match telegram_client.send_message(message.chat.id,
                                        String::from(HELP_COMMAND)) {
         Err(_) => {
@@ -133,13 +130,8 @@ fn help_handler(update: &Update, telegram_client: &TelegramClient) {
 }
 
 fn homed_handler(update: &Update, going_home_groups: &Arc<Mutex<HashMap<i64, GroupInfo>>>, telegram_client: &TelegramClient) {
-    let message = match &update.message {
-        Some(message) => message,
-        None => {
-            info!("Incoming update is not a message, ignoring update.");
-            return
-        }
-    };
+    // Assume that the update is a message in the handler
+    let message = update.message.as_ref().unwrap();
     let mut going_home_hashmap = going_home_groups.lock().unwrap();
 
     // Check if a going home session for this chat is active
@@ -181,8 +173,9 @@ fn homed_handler(update: &Update, going_home_groups: &Arc<Mutex<HashMap<i64, Gro
 }
 
 fn start_handler(update: &Update, going_home_groups: &Arc<Mutex<HashMap<i64, GroupInfo>>>, telegram_client: &TelegramClient) {
-    let message = match &update.message {
-        Some(message) => message,
+    let message = update.message.as_ref().unwrap();
+    let message_text = match &message.text {
+        Some(message_text) => message_text,
         None => return
     };
     let mut going_home_hashmap = going_home_groups.lock().unwrap();
@@ -198,13 +191,55 @@ fn start_handler(update: &Update, going_home_groups: &Arc<Mutex<HashMap<i64, Gro
         return
     }
 
-    let no_ppl = match telegram_client.get_chat_member_count(message.chat.id) {
-        Ok(no_ppl) => no_ppl - 1, // Minus one to exclude bot
+    // Get argument
+    let mut split_message_text_iter = message_text.split_whitespace();
+    split_message_text_iter.next();
+
+    let no_ppl_str = match split_message_text_iter.next() {
+        Some(no_ppl_str) => no_ppl_str,
+        None => ""
+    };
+
+    let chat_members = match telegram_client.get_chat_member_count(message.chat.id) {
+        Ok(chat_members) => chat_members - 1, // Exclude bot
         Err(_err) => {
             error!("Start handler: Failed to get chat member count.");
             return
         }
     };
+
+    let no_ppl;
+
+    if no_ppl_str == "" {
+        no_ppl = chat_members;
+    } else {
+        let mut parse_failed = false;
+        no_ppl = match no_ppl_str.parse::<i32>() {
+            Ok(no_ppl) => no_ppl,
+            Err(_err) => {
+                error!("Start handler: Failed to parse given argument into int");
+                parse_failed = true;
+                0
+            }
+        };
+        if parse_failed {
+            match telegram_client.send_message(message.chat.id,
+                                               String::from("Invalid argument given to /start.")) {
+                Err(err) => error!("Start handler: Failed to send bad argument error - {:?}", err),
+                Ok(_resp) => ()
+            }
+            return
+        }
+        // Check that no_ppl is valid
+        if no_ppl > chat_members || no_ppl <= 0 {
+            match telegram_client.send_message(message.chat.id,
+                                               String::from("Invalid argument given to /start.")) {
+                Err(err) => error!("Start handler: Failed to send bad argument error - {:?}", err),
+                Ok(_resp) => ()
+            }
+            return
+        }
+    }
 
     going_home_hashmap.insert(message.chat.id,
                              GroupInfo{
